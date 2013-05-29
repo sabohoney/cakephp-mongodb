@@ -83,6 +83,15 @@ class MongodbSource extends DboSource {
 	public $connection = null;
 
 /**
+ * Direct connection with database, isn't the
+ * same of DboSource::_connection
+ *
+ * @var mixed null | Mongo
+ * @access private
+ */
+	protected $_writeOption = 1;
+
+/**
  * Base Config
  *
  * set_string_id:
@@ -186,20 +195,18 @@ class MongodbSource extends DboSource {
 
 		try{
 
-			$host = $this->createConnectionName($this->config, $this->_driverVersion);
+			$uri = $this->createConnectionName();
 			$class = 'MongoClient';
 			if(!class_exists($class)){
 				$class = 'Mongo';
 			}
 
-			if (isset($this->config['replicaset']) && count($this->config['replicaset']) === 2) {
-				$this->connection = new $class($this->config['replicaset']['host'], $this->config['replicaset']['options']);
-			} else if ($this->_driverVersion >= '1.3.0') {
-				$this->connection = new $class($host);
+			if ($this->_driverVersion >= '1.3.0') {
+				$this->connection = new $class($uri);
 			} else if ($this->_driverVersion >= '1.2.0') {
-				$this->connection = new $class($host, array("persist" => $this->config['persistent']));
+				$this->connection = new $class($uri, array("persist" => $this->config['persistent']));
 			} else {
-				$this->connection = new $class($host, true, $this->config['persistent']);
+				$this->connection = new $class($uri, true, $this->config['persistent']);
 			}
 
 			if (isset($this->config['slaveok'])) {
@@ -213,6 +220,10 @@ class MongodbSource extends DboSource {
 						trigger_error('MongodbSource::connect ' . $return['errmsg']);
 						return false;
 					}
+				}
+				// set write option
+				if (isset($this->config['write'])) {
+					$this->_writeOption = $this->config['write'];
 				}
 				$this->connected = true;
 			}
@@ -230,23 +241,44 @@ class MongodbSource extends DboSource {
  * @param array $config
  * @param string $version  version of MongoDriver
  */
-		public function createConnectionName($config, $version) {
-			$host = null;
+		public function createConnectionName() {
+			$uri = null;
 
-			if ($version >= '1.0.2') {
-				$host = "mongodb://";
+			if ($this->_driverVersion >= '1.0.2') {
+				$uri = "mongodb://";
 			} else {
-				$host = '';
+				$uri = '';
 			}
-			$hostname = $config['host'] . ':' . $config['port'];
+			if (isset($this->config['replicaset'])) {
+				if (isset($this->config['replicaset']['node'])) {
+					$hostname = false;
+					foreach ($this->config['replicaset']['node'] as $node) {
+						if ($hostname) $hostname .= ',';
+						$port = isset($node['port']) ? $node['port'] : MongoClient::DEFAULT_PORT;
+						$hostname .= sprintf('%s:%s', $node['host'], $port);
+					}
+				} else {
+					$hostname = $this->config['replicaset']['host'];
+				}
+			} else {
+				$hostname = sprintf('%s:%s', $this->config['host'], $this->config['port']);
+			}
 
 			if(!empty($config['login'])){
-				$host .= $config['login'] .':'. $config['password'] . '@' . $hostname . '/'. $config['database'];
+				$uri .= sprintf('%s:%s@%s/%s', $this->config['login'], $this->config['password'], $hostname, $this->config['database']);
 			} else {
-				$host .= $hostname;
+				$uri .= $hostname;
+			}
+			if (isset($this->config['option']) && is_array($this->config['option'])) {
+				$option = array();
+				foreach ($this->config['option'] as $key => $params) {
+					$option[] = sprintf('%s=%s', $key, $params);
+				}
+				$option = implode('&', $option);
+				$uri .= sprintf('/?%s', $option);
 			}
 
-			return $host;
+			return $uri;
 		}
 
 
@@ -493,7 +525,7 @@ class MongodbSource extends DboSource {
 			if ($this->_driverVersion >= '1.3.0') {
 				$return = $this->_db
 					->selectCollection($Model->table)
-					->insert($data, array('safe' => true));
+					->insert($data, array('safe' => true, 'w' => $this->_writeOption));
 			} else {
 				$return = $this->_db
 					->selectCollection($Model->table)
@@ -752,7 +784,7 @@ class MongodbSource extends DboSource {
 
 			try{
 				if ($this->_driverVersion >= '1.3.0') {
-					$return = $mongoCollectionObj->update($cond, $data, array("multiple" => false, 'safe' => true));
+					$return = $mongoCollectionObj->update($cond, $data, array("multiple" => false, 'safe' => true, 'w' => $this->_writeOption));
 				} else {
 					$return = $mongoCollectionObj->update($cond, $data, array("multiple" => false));
 				}
@@ -768,7 +800,7 @@ class MongodbSource extends DboSource {
 		} else {
 			try{
 				if ($this->_driverVersion >= '1.3.0') {
-					$return = $mongoCollectionObj->save($data, array('safe' => true));
+					$return = $mongoCollectionObj->save($data, array('safe' => true, 'w' => $this->_writeOption));
 				} else {
 					$return = $mongoCollectionObj->save($data);
 				}
@@ -852,7 +884,7 @@ class MongodbSource extends DboSource {
 				// not use 'upsert'
 				$return = $this->_db
 					->selectCollection($Model->table)
-					->update($conditions, $fields, array("multiple" => true, 'safe' => true));
+					->update($conditions, $fields, array("multiple" => true, 'safe' => true, 'w' => $this->_writeOption));
 				if (isset($return['updatedExisting'])) {
 					$return = $return['updatedExisting'];
 				}

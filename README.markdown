@@ -45,9 +45,17 @@ To use this DB driver, install (obviously) and define a db source such as follow
 			/* optional auth fields
 			'login' => 'mongo',	
 			'password' => 'awesomeness',
-			'replicaset' => array('host' => 'mongodb://hoge:hogehoge@localhost:27021,localhost:27022/blog', 
-			                      'options' => array('replicaSet' => 'myRepl')
-					     ),
+			'replicaset' => 'mongodb://hoge:hogehoge@localhost:27021,localhost:27022/blog',
+			or
+			'replicaset' =>  array(
+				array('host' => 'localhost', 'port' => '27021'),
+				array('host' => 'localhost', 'port' => '27021'),
+			),
+			'options' => array(
+				'replicaSet' => 'myRepl',
+				'readPreference' => 'secondaryPreferred',
+			),
+			'write' => 'majority', e.g. array('safe' => 1, 'w' => 'majority')
 			*/
 		);
 
