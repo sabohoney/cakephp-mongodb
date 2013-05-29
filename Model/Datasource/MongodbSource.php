@@ -1568,7 +1568,7 @@ class MongodbSource extends DboSource {
  * @return void
  * @access private
  */
-	protected function _setWriteOption($write = array(), $reset = true) {
+	public function _setWriteOption($write = array(), $reset = true) {
 		if ($reset) {
 			$this->_writeOption = array_merge($this->_writeOption, $write);
 		} else {
