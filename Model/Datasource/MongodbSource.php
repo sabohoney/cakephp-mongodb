@@ -261,7 +261,7 @@ class MongodbSource extends DboSource {
 					$uri = $this->config['replicaset']['host'];
 				}
 			} else {
-				$hostname = sprintf('%s:%s', $this->config['host'], $this->config['port']);
+				$hostname = sprintf('%s:%s/%s', $this->config['host'], $this->config['port'], $this->config['database']);
 			}
 
 			if(!empty($config['login'])){
