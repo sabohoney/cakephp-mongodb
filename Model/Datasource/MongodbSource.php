@@ -242,6 +242,7 @@ class MongodbSource extends DboSource {
  */
 		public function createConnectionName() {
 			$uri = null;
+			$hostname = '';
 
 			if ($this->_driverVersion >= '1.0.2') {
 				$uri = "mongodb://";
@@ -257,7 +258,7 @@ class MongodbSource extends DboSource {
 						$hostname .= sprintf('%s:%s', $node['host'], $port);
 					}
 				} else {
-					$hostname = $this->config['replicaset']['host'];
+					$uri = $this->config['replicaset']['host'];
 				}
 			} else {
 				$hostname = sprintf('%s:%s', $this->config['host'], $this->config['port']);
@@ -268,9 +269,9 @@ class MongodbSource extends DboSource {
 			} else {
 				$uri .= $hostname;
 			}
-			if (isset($this->config['option']) && is_array($this->config['option'])) {
+			if (isset($this->config['options']) && is_array($this->config['options'])) {
 				$option = array();
-				foreach ($this->config['option'] as $key => $params) {
+				foreach ($this->config['options'] as $key => $params) {
 					$option[] = sprintf('%s=%s', $key, $params);
 				}
 				$option = implode('&', $option);
