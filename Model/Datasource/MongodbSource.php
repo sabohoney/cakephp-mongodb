@@ -83,13 +83,16 @@ class MongodbSource extends DboSource {
 	public $connection = null;
 
 /**
- * Direct connection with database, isn't the
- * same of DboSource::_connection
+ * Written confirmation setting
  *
- * @var mixed null | Mongo
- * @access private
+ * Be made via the methods of AppModel classes set.
+ *
+ * @var array
+ * @access protected
  */
-	protected $_writeOption = 1;
+	protected $_writeOption = array(
+		'w' => 1,
+	);
 
 /**
  * Base Config
@@ -220,10 +223,6 @@ class MongodbSource extends DboSource {
 						trigger_error('MongodbSource::connect ' . $return['errmsg']);
 						return false;
 					}
-				}
-				// set write option
-				if (isset($this->config['write'])) {
-					$this->_writeOption = $this->config['write'];
 				}
 				$this->connected = true;
 			}
@@ -525,7 +524,7 @@ class MongodbSource extends DboSource {
 			if ($this->_driverVersion >= '1.3.0') {
 				$return = $this->_db
 					->selectCollection($Model->table)
-					->insert($data, array('safe' => true, 'w' => $this->_writeOption));
+					->insert($data, $this->_writeOption);
 			} else {
 				$return = $this->_db
 					->selectCollection($Model->table)
@@ -784,7 +783,7 @@ class MongodbSource extends DboSource {
 
 			try{
 				if ($this->_driverVersion >= '1.3.0') {
-					$return = $mongoCollectionObj->update($cond, $data, array("multiple" => false, 'safe' => true, 'w' => $this->_writeOption));
+					$return = $mongoCollectionObj->update($cond, $data, $this->_setWriteOption(array('multiple' => false), false));
 				} else {
 					$return = $mongoCollectionObj->update($cond, $data, array("multiple" => false));
 				}
@@ -794,13 +793,13 @@ class MongodbSource extends DboSource {
 			}
 			if ($this->fullDebug) {
 				$this->logQuery("db.{$Model->useTable}.update( :conditions, :data, :params )",
-					array('conditions' => $cond, 'data' => $data, 'params' => array("multiple" => false))
+					array('conditions' => $cond, 'data' => $data, 'params' => $this->_setWriteOption(array('multiple' => false), false))
 				);
 			}
 		} else {
 			try{
 				if ($this->_driverVersion >= '1.3.0') {
-					$return = $mongoCollectionObj->save($data, array('safe' => true, 'w' => $this->_writeOption));
+					$return = $mongoCollectionObj->save($data, $this->_writeOption);
 				} else {
 					$return = $mongoCollectionObj->save($data);
 				}
@@ -884,7 +883,7 @@ class MongodbSource extends DboSource {
 				// not use 'upsert'
 				$return = $this->_db
 					->selectCollection($Model->table)
-					->update($conditions, $fields, array("multiple" => true, 'safe' => true, 'w' => $this->_writeOption));
+					->update($conditions, $fields, $this->_setWriteOption(array("multiple" => true), false));
 				if (isset($return['updatedExisting'])) {
 					$return = $return['updatedExisting'];
 				}
@@ -900,7 +899,7 @@ class MongodbSource extends DboSource {
 
 		if ($this->fullDebug) {
 			$this->logQuery("db.{$Model->useTable}.update( :conditions, :fields, :params )",
-				array('conditions' => $conditions, 'fields' => $fields, 'params' => array("multiple" => true))
+				array('conditions' => $conditions, 'fields' => $fields, 'params' => $this->_setWriteOption(array('multiple' => true), false))
 			);
 		}
 		return $return;
@@ -1555,6 +1554,25 @@ class MongodbSource extends DboSource {
 			if ($recurse && is_array($val)) {
 				$this->_stripAlias($val, $alias, true, $check);
 			}
+		}
+	}
+
+/**
+ * Configure option via override method.
+ *
+ * Use the reset variable is configuration is temporary.
+ *
+ *
+ * @param array $write array()
+ * @param mixed $reset true
+ * @return void
+ * @access private
+ */
+	protected function _setWriteOption($write = array(), $reset = true) {
+		if ($reset) {
+			$this->_writeOption = array_merge($this->_writeOption, $write);
+		} else {
+			return array_merge($this->_writeOption, $write);
 		}
 	}
 }

@@ -55,7 +55,6 @@ To use this DB driver, install (obviously) and define a db source such as follow
 				'replicaSet' => 'myRepl',
 				'readPreference' => 'secondaryPreferred',
 			),
-			'write' => 'majority', e.g. array('safe' => 1, 'w' => 'majority')
 			*/
 		);
 
@@ -100,3 +99,23 @@ Reference code, Thank you!
 
 [Joél Perras' divan](http://github.com/jperras/divan/)
 
+If you want to override the written confirmation setting.
+
+	# Sample Code
+
+	<?php
+	class AppModel extends Model {
+		public function _setWriteOption($write = array(), $reset = true) {
+			$db = & ConnectionManager::getDataSource($this->useDbConfig);
+			$db->_setWriteOption($write, $reset);
+		}
+	}
+	
+	<?php
+	class MyController extend Controller {
+		public $use = array('Post');
+		public function add() {
+			$this->Post->_setWriteOption(array('w' => 'majority'));
+			$this->Post->save($this->request->data);
+		}
+	}
